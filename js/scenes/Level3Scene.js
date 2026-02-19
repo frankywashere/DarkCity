@@ -221,6 +221,17 @@ class Level3Scene extends Phaser.Scene {
         this.events.on('playerRespawn', (hp, maxHp, lives) => {
             this.scene.get('HUDScene').updateHP(hp, maxHp);
             this.scene.get('HUDScene').updateLives(lives);
+
+            if (this.bossActive) {
+                const worldWidth = this.levelData.width * this.levelData.tileWidth;
+                const worldHeight = this.levelData.height * this.levelData.tileHeight;
+                this.cameras.main.setBounds(0, 0, worldWidth, worldHeight);
+                if (this.boss) {
+                    this.boss.destroy();
+                    this.boss = null;
+                }
+                this.bossActive = false;
+            }
         });
         this.events.on('playerAttack', (type) => {
             this.particleEffects.attackSwing(this.player.x, this.player.y, this.player.facingRight);
