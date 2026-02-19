@@ -81,6 +81,7 @@ class Level2Scene extends Phaser.Scene {
         this.cameras.main.setBounds(0, 0, worldWidth, worldHeight);
         this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
         this.cameras.main.setDeadzone(100, 50);
+        this.cameras.main.fadeIn(800, 0, 0, 0);
 
         // Vignette
         this.vignette = this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'vignette')

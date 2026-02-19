@@ -193,8 +193,12 @@ class CutsceneScene extends Phaser.Scene {
     }
 
     transitionToNext() {
+        if (this.transitioning) return;
+        this.transitioning = true;
+
         this.cameras.main.fadeOut(800, 0, 0, 0);
-        this.cameras.main.once('camerafadeoutcomplete', () => {
+        // Use timer instead of camera event for reliable transition
+        this.time.delayedCall(850, () => {
             this.scene.start(this.nextScene, this.playerData);
         });
     }

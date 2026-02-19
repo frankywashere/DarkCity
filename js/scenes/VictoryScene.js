@@ -176,9 +176,10 @@ class VictoryScene extends Phaser.Scene {
     }
 
     update() {
-        if (this.canExit && Phaser.Input.Keyboard.JustDown(this.enterKey)) {
+        if (this.canExit && !this.transitioning && Phaser.Input.Keyboard.JustDown(this.enterKey)) {
+            this.transitioning = true;
             this.cameras.main.fadeOut(1500, 0, 0, 0);
-            this.cameras.main.once('camerafadeoutcomplete', () => {
+            this.time.delayedCall(1550, () => {
                 this.scene.start('MenuScene');
             });
         }
