@@ -53,27 +53,30 @@ class CameraEffects {
 
     koFlash() {
         // Brief zoom in + flash + slowmo on killing blow (Neo Geo style)
-        this.camera.zoomTo(1.3, 200, 'Power2');
-        this.flash(100, 0xffffff);
+        // Use gentle zoom: baseZoom + 0.1 (not a hard 1.3x)
+        const targetZoom = this.baseZoom + 0.1;
+        this.camera.zoomTo(targetZoom, 150, 'Sine.easeOut');
+        this.flash(80, 0xffffff);
 
         // Slowmo for dramatic effect
         this.scene.time.timeScale = 0.3;
 
-        // Snap back to base zoom (1.15x during boss fights, 1x otherwise)
-        this.scene.time.delayedCall(200 * 0.3, () => {
-            this.camera.zoomTo(this.baseZoom, 300, 'Power2');
+        // Snap back smoothly - use real-time delay (not scaled by slowmo)
+        // delayedCall uses scene time, so multiply by timeScale to get real ms
+        this.scene.time.delayedCall(150, () => {
+            this.camera.zoomTo(this.baseZoom, 400, 'Sine.easeInOut');
             this.scene.time.timeScale = 1;
         });
     }
 
     bossZoom(zoomLevel) {
-        this.baseZoom = zoomLevel || 1.15;
-        this.camera.zoomTo(this.baseZoom, 1000, 'Power2');
+        this.baseZoom = zoomLevel || 1.1;
+        this.camera.zoomTo(this.baseZoom, 1500, 'Sine.easeInOut');
     }
 
     bossZoomReset() {
         this.baseZoom = 1;
-        this.camera.zoomTo(1, 500, 'Power2');
+        this.camera.zoomTo(1, 1200, 'Sine.easeInOut');
     }
 
     hitFreeze(duration) {

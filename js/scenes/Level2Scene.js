@@ -247,6 +247,8 @@ class Level2Scene extends Phaser.Scene {
                     this.boss = null;
                 }
                 this.bossActive = false;
+                this.cameraEffects.baseZoom = 1;
+                this.cameras.main.zoomTo(1, 300);
             }
         });
         this.events.on('playerAttack', (type) => {
@@ -417,13 +419,15 @@ class Level2Scene extends Phaser.Scene {
                 this.cameras.main.once('camerapancomplete', () => {
                     // Lock camera to arena
                     this.cameras.main.setBounds(arena.left, arena.top, arena.right - arena.left, arena.bottom - arena.top);
+                    this.player.setVelocity(0, 0);
                     this.input.keyboard.enabled = true;
+                    this.input.keyboard.resetKeys();
 
                     // Neo Geo style zoom in for boss fight
                     if (this.cameraEffects.bossZoom) {
-                        this.cameraEffects.bossZoom(1.15);
+                        this.cameraEffects.bossZoom();
                     } else {
-                        this.cameras.main.zoomTo(1.15, 1000);
+                        this.cameras.main.zoomTo(1.1, 1500);
                     }
                 });
             });
