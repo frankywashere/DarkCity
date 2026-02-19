@@ -37,6 +37,13 @@ class Player extends Phaser.Physics.Arcade.Sprite {
         this.jumpHeld = false;
         this.jumpTimer = 0;
         this.maxJumpTime = 200; // ms of variable jump height
+        // Coyote time (jump grace period after leaving ground)
+        this.coyoteTime = 100; // ms
+        this.lastGroundedTime = 0;
+        // Jump input buffering
+        this.jumpBufferTime = 100; // ms
+        this.jumpBuffered = false;
+        this.jumpBufferTimer = 0;
 
         // Combat state
         this.isInvincible = false;
@@ -44,10 +51,24 @@ class Player extends Phaser.Physics.Arcade.Sprite {
         this.isHurt = false;
         this.isDead = false;
         this.attackHitbox = null;
+        // Combo system
+        this.comboCount = 0;
+        this.comboTimer = 0;
+        this.comboWindow = 800; // ms to chain next hit
+        this.lastComboAttackType = null;
 
         // Tuning state
         this.isTuning = false;
         this.tuningTarget = null;
+
+        // Dodge roll
+        this.isDodging = false;
+        this.dodgeTimer = 0;
+        this.dodgeDuration = 350; // ms
+        this.dodgeInvulnTime = 250; // ms of i-frames
+        this.dodgeCooldown = 600; // ms
+        this.lastDodgeTime = 0;
+        this.dodgeSpeed = 350;
 
         // Checkpoint
         this.checkpointX = x;
@@ -102,6 +123,7 @@ class Player extends Phaser.Physics.Arcade.Sprite {
             ];
 
             animDefs.forEach(def => {
+                if (anims.exists(def.key)) return; // Skip if already created
                 const start = def.row * cols;
                 const end = start + cols - 1;
                 anims.create({
@@ -123,13 +145,36 @@ class Player extends Phaser.Physics.Arcade.Sprite {
     update(time, delta) {
         if (this.isDead) return;
 
-        this.handleMovement(time, delta);
-        this.handleJumping(time, delta);
-        this.handleCombat(time, delta);
-        this.handleTuning(time, delta);
-        this.handleInvincibility(time, delta);
-        this.handleRegen(time, delta);
-        this.handlePause();
+        // Combo timer countdown
+        if (this.comboTimer > 0) {
+            this.comboTimer -= delta;
+            if (this.comboTimer <= 0) {
+                this.comboTimer = 0;
+                this.comboCount = 0;
+                this.lastComboAttackType = null;
+                this.scene.events.emit('comboReset');
+            }
+        }
+
+        // Handle dodge before movement/combat (dodge overrides both)
+        this.handleDodge(time, delta);
+
+        if (this.isDodging) {
+            // While dodging, skip movement and combat but still handle jumping/tuning/etc
+            this.handleJumping(time, delta);
+            this.handleTuning(time, delta);
+            this.handleInvincibility(time, delta);
+            this.handleRegen(time, delta);
+            this.handlePause();
+        } else {
+            this.handleMovement(time, delta);
+            this.handleJumping(time, delta);
+            this.handleCombat(time, delta);
+            this.handleTuning(time, delta);
+            this.handleInvincibility(time, delta);
+            this.handleRegen(time, delta);
+            this.handlePause();
+        }
 
         // Update facing
         if (this.body.velocity.x > 0) this.facingRight = true;
@@ -157,7 +202,7 @@ class Player extends Phaser.Physics.Arcade.Sprite {
             // Use the specific attack type animation
             if (this.attackType === 'punch') {
                 newState = 'punch';
-            } else if (this.attackType === 'kick') {
+            } else if (this.attackType === 'kick' || this.attackType === 'divekick') {
                 newState = 'kick';
             } else if (this.attackType === 'sword') {
                 newState = 'sword';
@@ -209,6 +254,52 @@ class Player extends Phaser.Physics.Arcade.Sprite {
         }
     }
 
+    handleDodge(time, delta) {
+        // Update active dodge
+        if (this.isDodging) {
+            this.dodgeTimer += delta;
+
+            // During invulnerability portion of dodge
+            if (this.dodgeTimer <= this.dodgeInvulnTime) {
+                this.isInvincible = true;
+            }
+
+            // Dodge still active
+            if (this.dodgeTimer < this.dodgeDuration) {
+                this.setAlpha(0.4);
+            } else {
+                // Dodge finished
+                this.isDodging = false;
+                // Only restore alpha if not in invincibility frames from damage
+                if (this.invincibleTimer <= 0) {
+                    this.setAlpha(1);
+                }
+            }
+            return;
+        }
+
+        // Trigger dodge: Shift + JustDown Left/Right
+        if (this.isAttacking || this.isHurt) return;
+        if (time - this.lastDodgeTime <= this.dodgeCooldown) return;
+        if (!this.keys.shift.isDown) return;
+
+        const justLeft = Phaser.Input.Keyboard.JustDown(this.cursors.left);
+        const justRight = Phaser.Input.Keyboard.JustDown(this.cursors.right);
+
+        if (justLeft || justRight) {
+            this.isDodging = true;
+            this.dodgeTimer = 0;
+            this.lastDodgeTime = time;
+
+            const direction = justRight ? 1 : -1;
+            this.setVelocityX(this.dodgeSpeed * direction);
+            this.setAlpha(0.4);
+            this.isInvincible = true;
+
+            this.scene.events.emit('playerDodge');
+        }
+    }
+
     handleMovement(time, delta) {
         if (this.isAttacking || this.isHurt) return;
 
@@ -252,19 +343,55 @@ class Player extends Phaser.Physics.Arcade.Sprite {
         if (this.isHurt) return;
         const onGround = this.body.onFloor();
 
+        // Track last grounded time for coyote time
+        if (onGround) {
+            this.lastGroundedTime = time;
+        }
+
         // Reset double jump when landing
         if (onGround) {
             this.hasDoubleJumped = false;
             this.canDoubleJump = true;
         }
 
+        // Decrease jump buffer timer
+        if (this.jumpBufferTimer > 0) {
+            this.jumpBufferTimer -= delta;
+            if (this.jumpBufferTimer <= 0) {
+                this.jumpBufferTimer = 0;
+                this.jumpBuffered = false;
+            }
+        }
+
+        // Execute buffered jump on landing
+        if (onGround && this.jumpBuffered && this.jumpBufferTimer > 0) {
+            this.jumpBuffered = false;
+            this.jumpBufferTimer = 0;
+            this.setVelocityY(PLAYER_JUMP_VELOCITY);
+            this.jumpHeld = true;
+            this.jumpTimer = 0;
+            this.scene.events.emit('playerJump');
+            return;
+        }
+
+        // Reset jump buffer on ground
+        if (onGround) {
+            this.jumpBuffered = false;
+            this.jumpBufferTimer = 0;
+        }
+
+        // Coyote time: can jump if recently on ground
+        const withinCoyoteTime = (time - this.lastGroundedTime) < this.coyoteTime;
+
         // Jump initiation
         if (Phaser.Input.Keyboard.JustDown(this.cursors.up) ||
             Phaser.Input.Keyboard.JustDown(this.cursors.space)) {
-            if (onGround) {
+            if (onGround || withinCoyoteTime) {
                 this.setVelocityY(PLAYER_JUMP_VELOCITY);
                 this.jumpHeld = true;
                 this.jumpTimer = 0;
+                // Prevent coyote time from being used again
+                this.lastGroundedTime = 0;
                 this.scene.events.emit('playerJump');
             } else if (this.hasDoublejump && this.canDoubleJump && !this.hasDoubleJumped) {
                 this.setVelocityY(PLAYER_DOUBLE_JUMP_VELOCITY);
@@ -272,6 +399,10 @@ class Player extends Phaser.Physics.Arcade.Sprite {
                 this.jumpHeld = true;
                 this.jumpTimer = 0;
                 this.scene.events.emit('playerDoubleJump');
+            } else {
+                // Airborne, no double jump available: buffer the input
+                this.jumpBuffered = true;
+                this.jumpBufferTimer = this.jumpBufferTime;
             }
         }
 
@@ -299,17 +430,62 @@ class Player extends Phaser.Physics.Arcade.Sprite {
             return;
         }
 
+        // Aerial dive kick (X while airborne)
+        if (Phaser.Input.Keyboard.JustDown(this.keys.x) && !this.body.onFloor()) {
+            this.isAttacking = true;
+            this.attackType = 'divekick';
+            this.attackTimer = 500;
+            this.setVelocityY(450); // Fast downward
+            this.setVelocityX(this.facingRight ? 120 : -120);
+            // Combo tracking
+            if (this.comboTimer > 0) this.comboCount++;
+            else this.comboCount = 1;
+            this.comboTimer = this.comboWindow;
+            this.lastComboAttackType = 'divekick';
+            const comboMultiplier = 1 + Math.min(this.comboCount - 1, 4) * 0.15;
+            const dmg = KICK_DAMAGE * 1.5 * comboMultiplier;
+            this.createAttackHitbox(dmg, 30, 40);
+            this.attackHitbox.isDivekick = true;
+            this.scene.events.emit('playerAttack', 'divekick');
+            if (this.comboCount > 1) {
+                this.scene.events.emit('comboHit', this.comboCount);
+            }
+            return; // Don't process ground attacks
+        }
+
         // Punch (Z)
         if (Phaser.Input.Keyboard.JustDown(this.keys.z)) {
-            this.attack('punch', PUNCH_DAMAGE, 300, 30, 20);
+            this.comboAttack('punch', PUNCH_DAMAGE, 300, 30, 20);
         }
-        // Kick (X)
+        // Kick (X) - on ground
         else if (Phaser.Input.Keyboard.JustDown(this.keys.x)) {
-            this.attack('kick', KICK_DAMAGE, 450, 40, 24);
+            this.comboAttack('kick', KICK_DAMAGE, 450, 40, 24);
         }
         // Sword (C) - only if unlocked
         else if (Phaser.Input.Keyboard.JustDown(this.keys.c) && this.hasSword) {
-            this.attack('sword', SWORD_DAMAGE, 400, 45, 30);
+            this.comboAttack('sword', SWORD_DAMAGE, 400, 45, 30);
+        }
+    }
+
+    comboAttack(type, baseDamage, duration, rangeX, rangeY) {
+        // Update combo counter
+        if (this.comboTimer > 0) {
+            this.comboCount++;
+        } else {
+            this.comboCount = 1;
+        }
+        this.comboTimer = this.comboWindow;
+        this.lastComboAttackType = type;
+
+        // Calculate combo damage multiplier: caps at 1.6x for 5-hit combo
+        const comboMultiplier = 1 + Math.min(this.comboCount - 1, 4) * 0.15;
+        const damage = baseDamage * comboMultiplier;
+
+        this.attack(type, damage, duration, rangeX, rangeY);
+
+        // Emit combo event if combo > 1
+        if (this.comboCount > 1) {
+            this.scene.events.emit('comboHit', this.comboCount);
         }
     }
 
@@ -361,6 +537,11 @@ class Player extends Phaser.Physics.Arcade.Sprite {
         }
     }
 
+    // Called by CombatSystem when a divekick connects with an enemy
+    onDivekickHit() {
+        this.setVelocityY(-280);
+    }
+
     handleTuning(time, delta) {
         if (!this.hasTuning) return;
 
@@ -399,11 +580,15 @@ class Player extends Phaser.Physics.Arcade.Sprite {
     handleInvincibility(time, delta) {
         if (this.isInvincible) {
             this.invincibleTimer -= delta;
-            // Flash effect
-            this.setAlpha(Math.sin(time * 0.02) > 0 ? 1 : 0.3);
+            // Flash effect (but not during dodge, which uses its own alpha)
+            if (!this.isDodging) {
+                this.setAlpha(Math.sin(time * 0.02) > 0 ? 1 : 0.3);
+            }
             if (this.invincibleTimer <= 0) {
                 this.isInvincible = false;
-                this.setAlpha(1);
+                if (!this.isDodging) {
+                    this.setAlpha(1);
+                }
             }
         }
     }
@@ -430,6 +615,11 @@ class Player extends Phaser.Physics.Arcade.Sprite {
         this.isInvincible = true;
         this.invincibleTimer = PLAYER_INVINCIBILITY_TIME;
 
+        // Cancel dodge if hit (shouldn't happen due to i-frames, but safety)
+        if (this.isDodging) {
+            this.isDodging = false;
+        }
+
         // Knockback
         const kbX = knockbackDir ? knockbackDir * KNOCKBACK_FORCE : 0;
         this.setVelocity(kbX, -200);
@@ -451,6 +641,11 @@ class Player extends Phaser.Physics.Arcade.Sprite {
         this.lives--;
         this.setVelocity(0, -300);
         this.scene.events.emit('playerDeath');
+
+        // Reset combo on death
+        this.comboCount = 0;
+        this.comboTimer = 0;
+        this.lastComboAttackType = null;
 
         // Death rotation tween to compensate for weak death pose
         this.scene.tweens.add({
@@ -481,6 +676,12 @@ class Player extends Phaser.Physics.Arcade.Sprite {
         this.setRotation(0);
         this.setVelocity(0, 0);
         this.setAlpha(1);
+        this.isDodging = false;
+        this.comboCount = 0;
+        this.comboTimer = 0;
+        this.lastComboAttackType = null;
+        this.jumpBuffered = false;
+        this.jumpBufferTimer = 0;
         this.scene.events.emit('playerRespawn', this.hp, this.maxHp, this.lives);
     }
 

@@ -254,6 +254,32 @@ class Level3Scene extends Phaser.Scene {
         this.events.on('tuningDeflect', () => {
             this.audioManager.playSFX('tuning');
         });
+
+        this.events.on('comboHit', (count) => {
+            this.scene.get('HUDScene').showCombo(count);
+            if (this.particleEffects) {
+                this.particleEffects.comboSpark(this.player.x, this.player.y, count);
+            }
+        });
+
+        this.events.on('comboReset', () => {
+            this.scene.get('HUDScene').hideCombo();
+        });
+
+        this.events.on('playerDodge', () => {
+            if (this.particleEffects) {
+                this.particleEffects.dodgeTrail(this.player.x, this.player.y);
+            }
+            this.audioManager.playSFX('tuning'); // reuse tuning sound for dodge
+        });
+
+        this.events.on('enemyKilled', (x, y, scoreValue) => {
+            // Convert world position to screen position for HUD
+            const cam = this.cameras.main;
+            const screenX = x - cam.scrollX;
+            const screenY = y - cam.scrollY;
+            this.scene.get('HUDScene').showScorePopup(screenX, screenY, scoreValue);
+        });
     }
 
     update(time, delta) {
@@ -265,6 +291,24 @@ class Level3Scene extends Phaser.Scene {
 
         this.bgFar.tilePositionX = this.cameras.main.scrollX * 0.1;
         this.bgMid.tilePositionX = this.cameras.main.scrollX * 0.3;
+
+        // Dynamic vignette - pulse based on health and boss proximity
+        if (this.vignette) {
+            let vignetteAlpha = 0.4; // base
+
+            // Increase when HP is low
+            const hpRatio = this.player.hp / this.player.maxHp;
+            if (hpRatio < 0.3) {
+                vignetteAlpha += 0.2 * (1 - hpRatio / 0.3);
+            }
+
+            // Increase during boss fight
+            if (this.bossActive) {
+                vignetteAlpha += 0.1;
+            }
+
+            this.vignette.setAlpha(Phaser.Math.Linear(this.vignette.alpha, vignetteAlpha, 0.05));
+        }
 
         const ld = this.levelData;
         ld.midnightTriggers.forEach((triggerX, i) => {
@@ -279,7 +323,13 @@ class Level3Scene extends Phaser.Scene {
         }
 
         this.scene.get('HUDScene').updateTuning(this.player.tuningEnergy, this.player.maxTuning);
-        if (this.boss && this.boss.active) this.boss.update(time, delta);
+        if (this.boss && this.boss.active) {
+            this.boss.update(time, delta);
+            // Update boss HP in HUD
+            if (this.boss.hp !== undefined && this.boss.maxHp !== undefined) {
+                this.scene.get('HUDScene').updateBossHP(this.boss.hp, this.boss.maxHp);
+            }
+        }
 
         if (this.player.y > ld.height * ld.tileHeight + 50) {
             this.player.takeDamage(30, 0);
@@ -292,22 +342,82 @@ class Level3Scene extends Phaser.Scene {
 
     startBossFight() {
         this.bossActive = true;
+
+        // Freeze player
+        this.player.setVelocity(0, 0);
+        this.input.keyboard.enabled = false;
+
         const arena = this.levelData.bossArena;
-        this.cameras.main.setBounds(arena.left, arena.top, arena.right - arena.left, arena.bottom - arena.top);
 
-        this.boss = new MrBook(this, this.levelData.bossSpawn.x, this.levelData.bossSpawn.y);
-        this.enemies.add(this.boss);
-        this.combatSystem.registerEnemy(this.boss);
+        // Pan camera to boss spawn
+        const panToBoss = () => {
+            if (this.cameraEffects.cinematicPan) {
+                this.cameraEffects.cinematicPan(
+                    this.levelData.bossSpawn.x,
+                    this.levelData.bossSpawn.y,
+                    1000,
+                    spawnBoss
+                );
+            } else {
+                this.cameras.main.pan(this.levelData.bossSpawn.x, this.levelData.bossSpawn.y, 1000);
+                this.cameras.main.once('camerapancomplete', spawnBoss);
+            }
+        };
 
-        this.cameraEffects.flash(500, 0x8844ff);
-        this.cameraEffects.shake(1000, 0.02);
-        this.audioManager.playSFX('boss_appear');
-        this.scene.get('HUDScene').showBossName('MR. BOOK');
+        const spawnBoss = () => {
+            // Spawn boss with scale-in effect
+            this.boss = new MrBook(this, this.levelData.bossSpawn.x, this.levelData.bossSpawn.y);
+            this.boss.setScale(0);
+            this.boss.setAlpha(0);
 
-        this.boss.on('defeated', () => this.onBossDefeated());
+            this.tweens.add({
+                targets: this.boss,
+                scaleX: 1,
+                scaleY: 1,
+                alpha: 1,
+                duration: 600,
+                ease: 'Back.easeOut',
+            });
+
+            this.enemies.add(this.boss);
+            this.combatSystem.registerEnemy(this.boss);
+
+            this.cameraEffects.flash(500, 0x8844ff);
+            this.cameraEffects.shake(1000, 0.02);
+            this.audioManager.playSFX('boss_appear');
+            this.scene.get('HUDScene').showBossName('MR. BOOK');
+
+            // Pan back to player, then lock camera
+            this.time.delayedCall(1500, () => {
+                this.cameras.main.pan(this.player.x, this.player.y, 800, 'Power2');
+                this.cameras.main.once('camerapancomplete', () => {
+                    // Lock camera to arena
+                    this.cameras.main.setBounds(arena.left, arena.top, arena.right - arena.left, arena.bottom - arena.top);
+                    this.input.keyboard.enabled = true;
+
+                    // Neo Geo style zoom in for boss fight
+                    if (this.cameraEffects.bossZoom) {
+                        this.cameraEffects.bossZoom(1.15);
+                    } else {
+                        this.cameras.main.zoomTo(1.15, 1000);
+                    }
+                });
+            });
+
+            this.boss.on('defeated', () => this.onBossDefeated());
+        };
+
+        panToBoss();
     }
 
     onBossDefeated() {
+        // Reset boss zoom
+        if (this.cameraEffects.bossZoomReset) {
+            this.cameraEffects.bossZoomReset();
+        } else {
+            this.cameras.main.zoomTo(1, 500);
+        }
+
         this.bossActive = false;
         this.bossDefeated = true;
 

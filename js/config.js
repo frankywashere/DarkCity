@@ -53,6 +53,16 @@ const TUNING_PLATFORM_DURATION = 4000;
 // Water damage multiplier for Strangers
 const WATER_DAMAGE_MULTIPLIER = 3;
 
+// Combo system constants
+const COMBO_WINDOW = 800; // ms to chain next hit
+const COMBO_MAX_MULTIPLIER = 1.6; // max damage multiplier at 5 hits
+const DODGE_SPEED = 350;
+const DODGE_DURATION = 350;
+const DODGE_INVULN_TIME = 250;
+const DODGE_COOLDOWN = 600;
+const COYOTE_TIME = 100; // ms grace period after leaving ground
+const JUMP_BUFFER_TIME = 100; // ms input buffer before landing
+
 // Colors (for placeholder graphics)
 const COLORS = {
     MURDOCH_COAT: 0x2a2a3a,

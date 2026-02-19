@@ -10,6 +10,9 @@ class CutsceneScene extends Phaser.Scene {
     }
 
     create() {
+        // Reset transition flag (scene objects are reused across scene.start calls)
+        this.transitioning = false;
+
         // Dark background
         this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x000000);
 

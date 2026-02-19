@@ -71,6 +71,57 @@ class ParticleEffects {
         });
     }
 
+    koExplosion(x, y) {
+        // Big burst for enemy kill
+        this.burst(x, y, 'particle_white', 15, {
+            speed: 250,
+            lifespan: 400,
+            scale: { start: 1.2, end: 0 },
+            alpha: { start: 1, end: 0 },
+        });
+        this.burst(x, y, 'particle_blue', 8, {
+            speed: 150,
+            lifespan: 600,
+            scale: { start: 0.8, end: 0 },
+            alpha: { start: 0.8, end: 0 },
+            gravityY: -100,
+        });
+    }
+
+    dodgeTrail(x, y) {
+        this.burst(x, y, 'particle_blue', 4, {
+            speed: 40,
+            lifespan: 300,
+            scale: { start: 0.5, end: 0 },
+            alpha: { start: 0.4, end: 0 },
+        });
+    }
+
+    divekickImpact(x, y) {
+        this.burst(x, y, 'particle_dust', 10, {
+            speed: 180,
+            lifespan: 400,
+            scale: { start: 0.7, end: 0 },
+            alpha: { start: 0.8, end: 0 },
+            angle: { min: -60, max: 240 },
+        });
+        this.burst(x, y, 'particle_white', 6, {
+            speed: 100,
+            lifespan: 300,
+            scale: { start: 0.5, end: 0 },
+        });
+    }
+
+    comboSpark(x, y, comboCount) {
+        const count = Math.min(comboCount * 2, 12);
+        this.burst(x, y, 'particle_yellow', count, {
+            speed: 80 + comboCount * 20,
+            lifespan: 300,
+            scale: { start: 0.3 + comboCount * 0.1, end: 0 },
+            alpha: { start: 0.9, end: 0 },
+        });
+    }
+
     burst(x, y, key, count, config = {}) {
         const emitter = this.scene.add.particles(x, y, key, {
             speed: config.speed || 100,

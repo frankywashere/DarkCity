@@ -3,6 +3,8 @@ class CombatSystem {
         this.scene = scene;
         this.playerAttackHitboxes = [];
         this.enemyList = [];
+        this.comboHitCount = 0;
+        this.comboResetTimer = null;
     }
 
     registerPlayerAttack(hitbox) {
@@ -26,13 +28,69 @@ class CombatSystem {
 
         enemy.takeDamage(damage, knockDir);
 
-        // Destroy hitbox after hit to prevent multi-hit
+        // Track combo hits
+        this.comboHitCount++;
+        if (this.comboResetTimer) {
+            this.comboResetTimer.remove(false);
+        }
+        this.comboResetTimer = this.scene.time.delayedCall(1000, () => {
+            this.comboHitCount = 0;
+        });
+
+        // Flash enemy white on hit
+        enemy.setTint(0xffffff);
+        this.scene.time.delayedCall(80, () => {
+            if (enemy.active) enemy.clearTint();
+        });
+
+        // HIT STOP: Brief physics pause for impact feel (50-120ms based on attack type)
+        const hitStopDuration = {
+            punch: 40,
+            kick: 60,
+            sword: 100,
+            divekick: 80,
+        }[hitbox.attackType] || 50;
+
+        this.scene.physics.pause();
+        this.scene.time.delayedCall(hitStopDuration, () => {
+            this.scene.physics.resume();
+        });
+
+        // Divekick bounce: player bounces up when dive kick connects
+        if (hitbox.isDivekick && hitbox.owner) {
+            hitbox.owner.setVelocityY(-280);
+        }
+
+        // Dynamic camera shake based on attack type
+        const shakeConfig = {
+            punch: { duration: 80, intensity: 0.003 },
+            kick: { duration: 120, intensity: 0.005 },
+            sword: { duration: 150, intensity: 0.008 },
+            divekick: { duration: 100, intensity: 0.006 },
+        }[hitbox.attackType] || { duration: 100, intensity: 0.003 };
+
+        if (this.scene.cameraEffects) {
+            this.scene.cameraEffects.shake(shakeConfig.duration, shakeConfig.intensity);
+        }
+
+        // Destroy hitbox after hit
         hitbox.destroy();
         this.playerAttackHitboxes = this.playerAttackHitboxes.filter(h => h !== hitbox);
 
-        // Camera shake on hit
-        if (this.scene.cameraEffects) {
-            this.scene.cameraEffects.shake(100, 0.003);
+        // ENEMY DEATH SPECTACLE
+        if (enemy.hp <= 0) {
+            // Emit enemyKilled event with position and score value
+            this.scene.events.emit('enemyKilled', enemy.x, enemy.y, enemy.scoreValue || 100);
+
+            // Enhanced death particles
+            if (this.scene.particleEffects) {
+                this.scene.particleEffects.koExplosion(enemy.x, enemy.y);
+            }
+
+            // KO FLASH: Dramatic zoom + slowmo when enemy dies
+            if (this.scene.cameraEffects) {
+                this.scene.cameraEffects.koFlash();
+            }
         }
     }
 
