@@ -103,6 +103,6 @@ const LEVEL2_DATA = {
 
     bossTriggerX: 3500,
     bossSpawn: { x: 3800, y: 380 },
-    bossArena: { left: 3500, right: 4160, top: 0, bottom: 544 },
+    bossArena: { left: 3340, right: 4300, top: 0, bottom: 544 },
     exit: { x: 4050, y: 400 },
 };

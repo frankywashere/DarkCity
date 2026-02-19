@@ -87,15 +87,10 @@ class CameraEffects {
     }
 
     cinematicPan(targetX, targetY, duration, callback) {
-        // Disable player input during pan
-        if (this.scene.player) {
-            this.scene.player.setVelocity(0, 0);
-        }
-        this.scene.input.keyboard.enabled = false;
-
-        this.camera.pan(targetX, targetY, duration || 1000, 'Power2');
+        // Register listener BEFORE starting pan to avoid race condition
         this.camera.once('camerapancomplete', () => {
             if (callback) callback();
         });
+        this.camera.pan(targetX, targetY, duration || 1000, 'Power2');
     }
 }

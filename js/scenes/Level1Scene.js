@@ -255,6 +255,9 @@ class Level1Scene extends Phaser.Scene {
                 this.cameraEffects.baseZoom = 1;
                 this.cameras.main.zoomTo(1, 300);
             }
+            // Always ensure keyboard is re-enabled on respawn
+            this.input.keyboard.enabled = true;
+            this.input.keyboard.resetKeys();
         });
 
         this.events.on('playerAttack', (type) => {
@@ -366,13 +369,9 @@ class Level1Scene extends Phaser.Scene {
             this.scene.get('HUDScene').updateTuning(this.player.tuningEnergy, this.player.maxTuning);
         }
 
-        // Update boss
-        if (this.boss && this.boss.active) {
-            this.boss.update(time, delta);
-            // Update boss HP in HUD
-            if (this.boss.hp !== undefined && this.boss.maxHp !== undefined) {
-                this.scene.get('HUDScene').updateBossHP(this.boss.hp, this.boss.maxHp);
-            }
+        // Update boss HP in HUD (boss.update() handled by enemies group)
+        if (this.boss && this.boss.active && this.boss.hp !== undefined && this.boss.maxHp !== undefined) {
+            this.scene.get('HUDScene').updateBossHP(this.boss.hp, this.boss.maxHp);
         }
 
         // Check for falling into pits
@@ -404,9 +403,10 @@ class Level1Scene extends Phaser.Scene {
     startBossFight() {
         this.bossActive = true;
 
-        // Freeze player
-        this.player.setVelocity(0, 0);
+        // Freeze player and clear stale key states immediately
         this.input.keyboard.enabled = false;
+        this.input.keyboard.resetKeys();
+        this.player.setVelocity(0, 0);
 
         const arena = this.levelData.bossArena;
 
@@ -442,21 +442,31 @@ class Level1Scene extends Phaser.Scene {
 
             this.enemies.add(this.boss);
             this.combatSystem.registerEnemy(this.boss);
+            // Pause boss AI during cinematic
+            this.boss.active = false;
 
             this.cameraEffects.flash(500, 0x4444ff);
             this.cameraEffects.shake(1000, 0.02);
             this.audioManager.playSFX('boss_appear');
             this.scene.get('HUDScene').showBossName('MR. SLEEP');
 
+            // Ensure player is inside arena bounds before locking camera
+            if (this.player.x < arena.left + 40) this.player.x = arena.left + 40;
+            if (this.player.x > arena.right - 40) this.player.x = arena.right - 40;
+
             // Pan back to player, then lock camera
             this.time.delayedCall(1500, () => {
-                this.cameras.main.pan(this.player.x, this.player.y, 800, 'Power2');
+                // Register listener BEFORE starting pan to avoid race condition
                 this.cameras.main.once('camerapancomplete', () => {
-                    // Lock camera to arena
+                    // Lock camera to arena and re-enable follow
                     this.cameras.main.setBounds(arena.left, arena.top, arena.right - arena.left, arena.bottom - arena.top);
+                    this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
                     this.player.setVelocity(0, 0);
                     this.input.keyboard.enabled = true;
                     this.input.keyboard.resetKeys();
+
+                    // Activate boss AI now that player has control
+                    if (this.boss) this.boss.active = true;
 
                     // Neo Geo style zoom in for boss fight
                     if (this.cameraEffects.bossZoom) {
@@ -465,6 +475,7 @@ class Level1Scene extends Phaser.Scene {
                         this.cameras.main.zoomTo(1.1, 1500);
                     }
                 });
+                this.cameras.main.pan(this.player.x, this.player.y, 800, 'Power2');
             });
 
             this.boss.on('defeated', () => this.onBossDefeated());

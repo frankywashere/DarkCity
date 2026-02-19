@@ -105,7 +105,7 @@ const LEVEL1_DATA = {
     bossSpawn: { x: 3500, y: 380 },
 
     // Boss arena bounds
-    bossArena: { left: 3200, right: 3840, top: 0, bottom: 544 },
+    bossArena: { left: 3040, right: 4000, top: 0, bottom: 544 },
 
     // Level exit (after boss)
     exit: { x: 3750, y: 400 },

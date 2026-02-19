@@ -301,6 +301,10 @@ class Player extends Phaser.Physics.Arcade.Sprite {
     }
 
     handleMovement(time, delta) {
+        if (!this.scene.input.keyboard.enabled) {
+            this.setVelocityX(0);
+            return;
+        }
         if (this.isAttacking || this.isHurt) return;
 
         const onGround = this.body.onFloor();
@@ -503,7 +507,7 @@ class Player extends Phaser.Physics.Arcade.Sprite {
     createAttackHitbox(damage, rangeX, rangeY) {
         this.destroyAttackHitbox();
 
-        const offsetX = this.facingRight ? rangeX / 2 + 10 : -(rangeX / 2 + 10);
+        const offsetX = this.facingRight ? rangeX / 2 : -(rangeX / 2);
         this.attackHitbox = this.scene.add.zone(
             this.x + offsetX,
             this.y,
@@ -525,7 +529,7 @@ class Player extends Phaser.Physics.Arcade.Sprite {
     updateAttackHitbox() {
         if (this.attackHitbox) {
             const rangeX = this.attackHitbox.width;
-            const offsetX = this.facingRight ? rangeX / 2 + 10 : -(rangeX / 2 + 10);
+            const offsetX = this.facingRight ? rangeX / 2 : -(rangeX / 2);
             this.attackHitbox.setPosition(this.x + offsetX, this.y);
         }
     }
