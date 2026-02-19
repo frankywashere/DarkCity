@@ -1,0 +1,105 @@
+{
+  "frameWidth": 64,
+  "frameHeight": 64,
+  "columns": 2,
+  "rows": 12,
+  "totalFrames": 24,
+  "animations": [
+    {
+      "name": "idle",
+      "row": 0,
+      "startFrame": 0,
+      "endFrame": 1,
+      "frameCount": 2,
+      "frameRate": 6
+    },
+    {
+      "name": "walk",
+      "row": 1,
+      "startFrame": 2,
+      "endFrame": 3,
+      "frameCount": 2,
+      "frameRate": 8
+    },
+    {
+      "name": "run",
+      "row": 2,
+      "startFrame": 4,
+      "endFrame": 5,
+      "frameCount": 2,
+      "frameRate": 10
+    },
+    {
+      "name": "jump",
+      "row": 3,
+      "startFrame": 6,
+      "endFrame": 7,
+      "frameCount": 2,
+      "frameRate": 8
+    },
+    {
+      "name": "fall",
+      "row": 4,
+      "startFrame": 8,
+      "endFrame": 9,
+      "frameCount": 2,
+      "frameRate": 6
+    },
+    {
+      "name": "crouch",
+      "row": 5,
+      "startFrame": 10,
+      "endFrame": 11,
+      "frameCount": 2,
+      "frameRate": 4
+    },
+    {
+      "name": "punch",
+      "row": 6,
+      "startFrame": 12,
+      "endFrame": 13,
+      "frameCount": 2,
+      "frameRate": 12
+    },
+    {
+      "name": "kick",
+      "row": 7,
+      "startFrame": 14,
+      "endFrame": 15,
+      "frameCount": 2,
+      "frameRate": 12
+    },
+    {
+      "name": "sword_slash",
+      "row": 8,
+      "startFrame": 16,
+      "endFrame": 17,
+      "frameCount": 2,
+      "frameRate": 10
+    },
+    {
+      "name": "tuning_activate",
+      "row": 9,
+      "startFrame": 18,
+      "endFrame": 19,
+      "frameCount": 2,
+      "frameRate": 8
+    },
+    {
+      "name": "hurt",
+      "row": 10,
+      "startFrame": 20,
+      "endFrame": 21,
+      "frameCount": 2,
+      "frameRate": 8
+    },
+    {
+      "name": "death",
+      "row": 11,
+      "startFrame": 22,
+      "endFrame": 23,
+      "frameCount": 2,
+      "frameRate": 6
+    }
+  ]
+}

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dark City: The Awakening</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #000;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
+    </style>
+</head>
+<body>
+    <!-- Phaser 3 -->
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+
+    <!-- Config & Constants -->
+    <script src="js/config.js"></script>
+
+    <!-- Utilities -->
+    <script src="js/utils/SaveManager.js"></script>
+    <script src="js/utils/CollisionHandler.js"></script>
+
+    <!-- Systems -->
+    <script src="js/systems/CombatSystem.js"></script>
+    <script src="js/systems/TuningSystem.js"></script>
+    <script src="js/systems/ParticleEffects.js"></script>
+    <script src="js/systems/CameraEffects.js"></script>
+    <script src="js/systems/MidnightTuning.js"></script>
+    <script src="js/systems/DialogueSystem.js"></script>
+    <script src="js/systems/AudioManager.js"></script>
+
+    <!-- Entities -->
+    <script src="js/entities/Player.js"></script>
+    <script src="js/entities/Enemy.js"></script>
+    <script src="js/entities/StrangerGrunt.js"></script>
+    <script src="js/entities/MrSleep.js"></script>
+    <script src="js/entities/MrWall.js"></script>
+    <script src="js/entities/MrHand.js"></script>
+    <script src="js/entities/MrBook.js"></script>
+    <script src="js/entities/Collectible.js"></script>
+
+    <!-- Level Data -->
+    <script src="js/levels/LevelData1.js"></script>
+    <script src="js/levels/LevelData2.js"></script>
+    <script src="js/levels/LevelData3.js"></script>
+
+    <!-- Scenes -->
+    <script src="js/scenes/BootScene.js"></script>
+    <script src="js/scenes/MenuScene.js"></script>
+    <script src="js/scenes/CutsceneScene.js"></script>
+    <script src="js/scenes/Level1Scene.js"></script>
+    <script src="js/scenes/Level2Scene.js"></script>
+    <script src="js/scenes/Level3Scene.js"></script>
+    <script src="js/scenes/HUDScene.js"></script>
+    <script src="js/scenes/PauseScene.js"></script>
+    <script src="js/scenes/GameOverScene.js"></script>
+    <script src="js/scenes/VictoryScene.js"></script>
+
+    <!-- Main -->
+    <script src="js/main.js"></script>
+</body>
+</html>
