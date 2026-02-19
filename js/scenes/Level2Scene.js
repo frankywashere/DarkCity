@@ -56,6 +56,9 @@ class Level2Scene extends Phaser.Scene {
         this.collectibles = this.add.group();
         this.createCollectibles(ld);
 
+        // TuningSystem must exist before crates register with it
+        this.tuningSystem = new TuningSystem(this);
+
         // Crates (pushable)
         this.crates = this.add.group();
         this.createCrates(ld);
@@ -67,7 +70,6 @@ class Level2Scene extends Phaser.Scene {
         // Systems
         this.combatSystem = new CombatSystem(this);
         this.collisionHandler = new CollisionHandler(this);
-        this.tuningSystem = new TuningSystem(this);
         this.midnightTriggered = {};
         this.midnightTuning = new MidnightTuning(this);
         this.particleEffects = new ParticleEffects(this);
